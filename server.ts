@@ -8,3 +8,7 @@ connectDB().then(() => {
     console.log(`server is running on ${config.port}`)
   })
 })
+.catch((error) => {
+    console.error("Database connection failed completely!", error);
+    process.exit(1); 
+  });
