@@ -5,7 +5,7 @@ import connectDB from "./src/config/db.js";
 
 connectDB().then(() => {
   app.listen(config.port,()=>{
-    console.log(`server is running on ${config.port}`)
+    console.log(`server is running on http://localhost:${config.port}`)
   })
 })
 .catch((error) => {

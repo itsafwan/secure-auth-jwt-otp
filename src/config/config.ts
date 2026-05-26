@@ -7,6 +7,7 @@ configDotenv()
 const requiredEnvVariables = [
   "MONGO_URI",
   "PORT",
+  "JWT_SECRET"
 ];
 
 
@@ -19,6 +20,7 @@ requiredEnvVariables.forEach((variableName) => {
 const config = {
   port: process.env.PORT || 3000,
   Mongo: process.env.MONGO_URI  || "" ,
+  Jwt : process.env.JWT_SECRET || "",
 }
 
 
