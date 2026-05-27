@@ -1,7 +1,7 @@
 import {type Request, type Response} from "express";
 import User from "../models/user.model.js";
 import crypto from "crypto";
-import jwt from "jsonwebtoken";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import config from "../config/config.js";
 
 
@@ -48,5 +48,47 @@ res.status(201).json({
     }
   });
 
+}
+
+export async function getProfile(req: Request, res: Response) {
+  try {
+    
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({
+        message: "No token provided",
+        success: false
+      });
+    }
+
+    const decoded = jwt.verify(token, config.Jwt) as JwtPayload & { id: string };
+    
+    const user = await User.findById(decoded.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found in database",
+        success: false
+      });
+    }
+
+    
+    return res.status(200).json({
+      message: "User fetched successfully",
+      success: true,
+      user: {
+        username: user.username,
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    
+    return res.status(401).json({
+      message: "Invalid or expired token",
+      success: false
+    });
+  }
 }
  
