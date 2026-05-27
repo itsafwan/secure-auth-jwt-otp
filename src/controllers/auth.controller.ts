@@ -31,18 +31,33 @@ export async function register(req: Request, res: Response) {
     password:hasedpassword
    })
 
-  const token = jwt.sign(
+  const accesstoken = jwt.sign(
   { id: user._id }, 
   config.Jwt,
     {
-      expiresIn:"1d"
+      expiresIn:"15m"
     }
 );
+
+const refreshtoken = jwt.sign(
+  { id: user._id }, 
+  config.Jwt,
+    {
+      expiresIn:"7d"
+    }
+);
+
+  res.cookie("refreshtoken",refreshtoken,{
+    httpOnly:true,
+    secure:true,
+    sameSite:"strict",
+    maxAge:7 * 24 * 60 * 60 * 1000 
+  })
 
 res.status(201).json({
     message: "User registered successfully",
     success: true,
-    token,
+    accesstoken,
     user:{
       username:user.username,
       email:user.email
@@ -117,6 +132,54 @@ export async function login(req: Request, res: Response) {
   } catch (error) {
     return res.status(500).json({
       message: "Server error during login",
+      success: false
+    });
+  }
+}
+
+
+export async function refreshtoken(req: Request, res: Response) {
+  const refreshtoken = req.cookies.refreshtoken;
+
+  if (!refreshtoken) {
+    return res.status(401).json({
+      message: "Refresh token not found",
+      success: false
+    });
+  }
+
+  try {
+    
+    const decoded = jwt.verify(refreshtoken, config.Jwt) as JwtPayload & { id: string };
+
+    const accesstoken = jwt.sign(
+      { id: decoded.id }, 
+      config.Jwt,
+      { expiresIn: "15m" }
+    );
+
+    const newrefreshtoken = jwt.sign(
+      { id: decoded.id }, 
+      config.Jwt,
+      { expiresIn: "7d" }
+    );
+
+    res.cookie("refreshtoken",newrefreshtoken,{
+    httpOnly:true,
+    secure:true,
+    sameSite:"strict",
+    maxAge:7 * 24 * 60 * 60 * 1000 
+  })
+    
+    return res.status(200).json({
+      success: true,
+      message: "Access token refreshed successfully",
+      accesstoken
+    });
+
+  } catch (error) {
+    return res.status(401).json({
+      message: "Invalid or expired refresh token",
       success: false
     });
   }
