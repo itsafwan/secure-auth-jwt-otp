@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
   required: [true, "Email is required"], 
   unique: [true, "Email is must be unique"] },
 
- password:{ type: String, required: [true, "Password is required"] }
+ password:{ type: String, required: [true, "Password is required"] },
+
+  verified:{ type: Boolean, default: false },
 })
 
 const User = mongoose.model("User", userSchema);
