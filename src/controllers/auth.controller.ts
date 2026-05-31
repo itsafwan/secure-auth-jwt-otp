@@ -248,47 +248,73 @@ export async function refreshtoken(req: Request, res: Response) {
 }
 
 export async function logout(req: Request, res: Response) {
+  try {
+    
+    const targetSessionId = req.body?.targetSessionId;
 
-  const refreshtoken = req.cookies.refreshtoken;
+    if (targetSessionId && typeof targetSessionId === "string" && targetSessionId.trim() !== "") {
+     
+      const session = await sessionModel.findById(targetSessionId);
+      
+      if (session) {
+        session.revoked = true;
+        await session.save();
 
-  if (!refreshtoken) {
-    return res.status(400).json({
+        return res.status(200).json({
+          success: true,
+          message: "Target device logged out successfully"
+        });
+      }
+    }
+
+    
+    const refreshtoken = req.cookies?.refreshtoken;
+
+    if (!refreshtoken) {
+      return res.status(400).json({
+        success: false,
+        message: "Token not found" 
+      });
+    }
+
+  
+    const refreshTokenHash = crypto.createHash("sha256").update(refreshtoken).digest("hex");
+    
+    const session = await sessionModel.findOne({
+      refreshtokenHash: refreshTokenHash, 
+      revoked: false
+    });
+
+    if (!session) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Refresh Token" 
+      });
+    }
+
+    session.revoked = true;
+    await session.save();
+
+    
+    res.clearCookie("refreshtoken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict"
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logged out successfully"
+    });
+
+  } catch (error) {
+    
+    console.error("LOGOUT ERROR :", error);
+    return res.status(500).json({
       success: false,
-      message: "Token not found" 
+      message: "Internal server error"
     });
   }
-
-  
-  const refreshTokenHash = crypto.createHash("sha256").update(refreshtoken).digest("hex");
-  
-  
-  const session = await sessionModel.findOne({
-    refreshtokenHash: refreshTokenHash, 
-    revoked: false
-  });
-
-  if (!session) {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid Refresh Token" 
-    });
-  }
-
- 
-  session.revoked = true;
-  await session.save(); !
-
-
-  res.clearCookie("refreshtoken", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict"
-  });
-
-  return res.status(200).json({
-    success: true,
-    message: "Logged out successfully"
-  });
 }
 
 export async function logoutAll(req: Request, res: Response) {
@@ -320,6 +346,49 @@ export async function logoutAll(req: Request, res: Response) {
     message: "Logged out from all sessions successfully"
   });
 
+}
+
+export async function getActiveSessions(req: Request, res: Response) {
+  try {
+   
+    const authHeader = req.headers.authorization;
+    let token = authHeader && authHeader.split(" ")[1];
+
+    
+    if (!token) {
+      token = req.cookies.refreshtoken; 
+    }
+
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication token missing. Please login again."
+      });
+    }
+
+    
+    const decoded = jwt.verify(token, config.Jwt) as jwt.JwtPayload & { id: string };
+
+    const activeSessions = await sessionModel.find({
+      user: decoded.id,
+      revoked: false  // Sirf zinda sessions layega
+    }).select("ip userAgent createdAt");
+
+    return res.status(200).json({
+      success: true,
+      message: "Active sessions fetched successfully",
+      totalDevices: activeSessions.length,
+      devices: activeSessions
+    });
+
+  } catch (error) {
+    console.error("Error in getActiveSessions:", error);
+    return res.status(401).json({
+      success: false,
+      message: "Session expired or invalid"
+    });
+  }
 }
 
 export async function verifyEmail(req: Request, res: Response) {

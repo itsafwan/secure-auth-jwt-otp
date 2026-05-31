@@ -1,6 +1,6 @@
 import mongoose, { Document } from "mongoose";
 
-// Interface ko strictly batao ke undefined accept karna hi parega!
+
 interface ISession extends Document {
   user: mongoose.Types.ObjectId;
   refreshtokenHash: string;

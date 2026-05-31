@@ -9,6 +9,7 @@ authRouter.get('/getProfile', authController.getMe);
 authRouter.get('/refresh-token', authController.refreshtoken);
 authRouter.get('/logout', authController.logout);
 authRouter.get('/logout-all', authController.logoutAll);
+authRouter.get('/active-devices', authController.getActiveSessions);
 authRouter.post('/verify-email', authController.verifyEmail);
  
 
