@@ -447,3 +447,130 @@ export async function verifyEmail(req: Request, res: Response) {
   });
   }
 }
+
+export async function forgotPassword(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email is required",
+        success: false
+      });
+    }
+
+   
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "No user found with this email address",
+        success: false
+      });
+    }
+
+   
+    await otpModel.deleteMany({ email });
+
+   
+    const otp = genrateOtp();
+    const html = getOtp(otp); 
+    const otpHash = crypto.createHash("sha256").update(otp.toString()).digest("hex");
+
+    
+    await otpModel.create({
+      email,
+      user: user._id,
+      otpHash
+    });
+
+    
+    await sendEmail({
+      to: email,
+      subject: "Password Reset OTP",
+      text: `Your OTP for resetting password is: ${otp}. This code is valid for a limited time.`,
+      html
+    });
+
+    return res.status(200).json({
+      message: "Password reset OTP sent to your email successfully",
+      success: true
+    });
+
+  } catch (error) {
+    console.error("FORGOT PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false
+    });
+  }
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        message: "Email, OTP, and new password are required",
+        success: false
+      });
+    }
+
+    
+    const otpHash = crypto.createHash("sha256").update(otp.toString()).digest("hex");
+
+    
+    const otpDoc = await otpModel.findOne({ email, otpHash });
+    if (!otpDoc) {
+      return res.status(400).json({
+        message: "Invalid or Expired OTP",
+        success: false
+      });
+    }
+
+   
+    const hashedNewPassword = crypto.createHash("sha256").update(newPassword).digest("hex");
+
+    
+    const user = await User.findByIdAndUpdate(
+      otpDoc.user,
+      { password: hashedNewPassword, verified: true },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+        success: false
+      });
+    }
+
+    
+    await otpModel.deleteMany({ user: otpDoc.user });
+
+    
+    await sessionModel.updateMany(
+      { user: user._id, revoked: false },
+      { revoked: true }
+    );
+
+    
+    res.clearCookie("refreshtoken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict"
+    });
+
+    return res.status(200).json({
+      message: "Password has been reset successfully. All active sessions logged out.",
+      success: true
+    });
+
+  } catch (error) {
+    console.error("RESET PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false
+    });
+  }
+}
