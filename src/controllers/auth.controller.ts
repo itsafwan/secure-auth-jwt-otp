@@ -5,7 +5,7 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
 import config from "../config/config.js";
 import sessionModel from "../models/session.model.js";
 import { sendEmail } from "../services/sendemail.service.js";
-import { genrateOtp, getOtp } from "../utils/utils.js";
+import { genrateOtp, getOtp, forgetOtp } from "../utils/utils.js";
 import otpModel from "../models/otp.model.js";
 
 
@@ -469,11 +469,11 @@ export async function forgotPassword(req: Request, res: Response) {
     }
 
    
-    await otpModel.deleteMany({ email });
+    await otpModel.deleteMany({ email }); 
 
    
     const otp = genrateOtp();
-    const html = getOtp(otp); 
+    const html = forgetOtp(otp); 
     const otpHash = crypto.createHash("sha256").update(otp.toString()).digest("hex");
 
     
@@ -568,6 +568,87 @@ export async function resetPassword(req: Request, res: Response) {
 
   } catch (error) {
     console.error("RESET PASSWORD ERROR:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      success: false
+    });
+  }
+}
+
+export async function changepassword(req: Request, res: Response) {
+
+  const refreshtoken = req.headers.authorization?.split(" ")[1];
+
+  if(!refreshtoken){
+    return res.status(401).json({
+      message: "No token provided, access denied",
+      success: false
+    });
+  }
+
+  try{
+
+    const {oldPassword, newPassword} = req.body;
+
+    if(!oldPassword || !newPassword){
+      return res.status(400).json({
+        message: "Old password and new password are required",
+        success: false
+      });
+    }
+
+    const decoded = jwt.verify(refreshtoken, config.Jwt) as JwtPayload & { id: string };
+
+    const user = await User.findById(decoded.id);
+
+    if(!user){
+      return res.status(404).json({
+        message: "User not found",
+        success: false
+      });
+    }
+
+    const hashedOldPassword = crypto.createHash("sha256").update(oldPassword).digest("hex");
+    const isPasswordValid = hashedOldPassword === user.password;
+
+    if (!isPasswordValid) {
+     return res.status(400).json({
+    message: "Incorrect old password",
+    success: false
+  });
+}
+
+    const hashedNewPassword = crypto.createHash("sha256").update(newPassword).digest("hex");
+
+    if (hashedNewPassword === user.password) {
+    return res.status(400).json({
+    message: "New password cannot be the same as your old password",
+    success: false
+  });
+}
+
+    user.password = hashedNewPassword;
+    await user.save();
+
+    await sessionModel.updateMany(
+      { user: user._id, revoked: false },
+      { revoked: true }
+    );
+
+    res.clearCookie("refreshtoken", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict"
+    });
+
+    return res.status(200).json({
+      message: "Password changed successfully. All active sessions logged out.",
+      success: true
+    });
+
+  }
+  catch(error){
+    console.error("CHANGE PASSWORD ERROR:", error);
     return res.status(500).json({
       message: "Internal server error",
       success: false

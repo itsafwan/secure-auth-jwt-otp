@@ -13,6 +13,7 @@ authRouter.get('/active-devices', authController.getActiveSessions);
 authRouter.post('/verify-email', authController.verifyEmail);
 authRouter.post("/forgot-password", authController.forgotPassword);
 authRouter.post("/reset-password", authController.resetPassword);
+authRouter.post('/change-password', authController.changepassword);
  
 
 export default authRouter;
