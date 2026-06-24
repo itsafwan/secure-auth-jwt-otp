@@ -1,5 +1,4 @@
 # secure-auth-jwt-otp
-
 A production-ready secure authentication backend built with Node.js, TypeScript, and MongoDB. Features JWT Access/Refresh Token Rotation, Session Management (Logout from all devices), and OTP verification.
 
 ## Key Features
@@ -23,3 +22,16 @@ GOOGLE_USER=your_gmail_address
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 GOOGLE_REFRESH_TOKEN=your_refresh_token
+```
+
+## API Endpoints
+
+### Auth Routes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/verify-otp` | Verify email OTP |
+| POST | `/api/auth/login` | Login (returns access + refresh token) |
+| POST | `/api/auth/refresh` | Rotate access token |
+| POST | `/api/auth/logout` | Logout current device |
+| POST | `/api/auth/logout-all` | Logout all devices |
